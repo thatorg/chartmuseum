@@ -9,4 +9,5 @@ COPY run.sh .
 ENV GCLOUD_SERVICE_KEY=put_your_gcloud_service_key_here
 ENV GCLOUD_BUCKET_NAME=chartmuseum
 ENTRYPOINT ["/bin/bash"]
+EXPOSE 8080
 CMD ["/opt/app/run.sh"]

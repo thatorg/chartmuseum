@@ -1,0 +1,15 @@
+= chartmuseum
+
+image::https://github.com/veronezi/chartmuseum/workflows/build_and_deploy/badge.svg
+
+Handy chartmuseum image that easily connects to gcloud.
+
+
+
+== How to run it?
+
+```
+export GCLOUD_SERVICE_KEY="<your key here>"
+export GCLOUD_BUCKET_NAME="<your bucket name here>"
+docker run --rm -ti -e GCLOUD_SERVICE_KEY="$GCLOUD_SERVICE_KEY" -e GCLOUD_BUCKET_NAME="$GCLOUD_BUCKET_NAME" -p 9090:8080 veronezi/chartmuseum:3
+```
