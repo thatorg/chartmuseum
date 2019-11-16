@@ -1,10 +1,8 @@
 = chartmuseum
 
-image::https://github.com/veronezi/chartmuseum/workflows/build_and_deploy/badge.svg
+image::https://github.com/veronezi/chartmuseum/workflows/build_and_deploy/badge.svg[Badge]
 
 Handy chartmuseum image that easily connects to gcloud.
-
-
 
 == How to run it?
 
