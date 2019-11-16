@@ -1,19 +1,12 @@
-name: infradude
+name: build and deploy
 
 on:
   push:
-    paths:
-      - '.github/workflows/infradude.yml'
-      - 'projects/infradude/**'
+    branches:
+      - master         # Push events on master branch
 
 env:
-  GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
-  GCLOUD_PROJECT_NAME: sda-playground
-  GCLOUD_COMPUTE_ZONE: us-central1-a
-  GCLOUD_CLUSTER: playground
-  GCLOUD_CHARTMUSEUM_BUCKET: sda_chartmuseum
-  SLACK_APP_TOKEN: ${{ secrets.SLACK_APP_TOKEN }}
-  SLACK_APP_NAME: infradude
+  DOCKER_HUB_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
 jobs:
   build:
@@ -26,75 +19,12 @@ jobs:
           export GITTOOLS="gittools/gitversion:5.1.2-beta1-12-linux-debian-9-netcoreapp3.0"
           echo `docker run --rm -v "$(pwd):/repo" $GITTOOLS /repo | jq -r '.CommitsSinceVersionSource'` > semver.txt
 
-      - name: connect to gcloud
+      - name: connect to docker hub
         run: |
-          echo $GCLOUD_SERVICE_KEY | base64 --decode -i > ${HOME}/gcloud-service-key.json
-          gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
-          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://gcr.io
-          gcloud config set project ${GCLOUD_PROJECT_NAME}
-          gcloud config set compute/zone ${GCLOUD_COMPUTE_ZONE}
-          gcloud container clusters get-credentials ${GCLOUD_CLUSTER}
+          echo "$DOCKER_HUB_ACCESS_TOKEN" | docker login --username tveronezi --password-stdin
 
-      - name: install helm
-        run: |
-          curl https://get.helm.sh/helm-v2.14.3-linux-amd64.tar.gz -o helm.tar.gz
-          tar xvzf helm.tar.gz
-          rm -Rf helm.tar.gz
-          mv linux-amd64 helm
-          export PATH=$PATH:$(cd helm && pwd)
-          helm init --upgrade --wait
-
-      - name: build docker image
-        working-directory: './projects/infradude'
-        run: |
-          docker build . -t gcr.io/$GCLOUD_PROJECT_NAME/infradude
-
-      - name: deploy docker image
+      - name: build and push docker image
         run: |
           export SEMVER=`cat semver.txt`
-          docker tag gcr.io/$GCLOUD_PROJECT_NAME/infradude gcr.io/$GCLOUD_PROJECT_NAME/infradude:"$SEMVER"
-          docker push gcr.io/$GCLOUD_PROJECT_NAME/infradude:"$SEMVER"
-
-      - name: build and start chartmuseum
-        working-directory: './projects/chartmuseum'
-        run: |
-          docker build -t my-chartmuseum .
-          echo "Run chartmuseum..."
-          docker run --rm -e GCLOUD_BUCKET_NAME=$GCLOUD_CHARTMUSEUM_BUCKET -e GCLOUD_SERVICE_KEY=$GCLOUD_SERVICE_KEY --name chartmuseum -p 9090:8080 -d my-chartmuseum
-
-      - name: link helm and chartmuseum
-        run: |
-          helm plugin install https://github.com/chartmuseum/helm-push
-          echo "Wait for chartmuseum to be ready..."
-          until helm repo add chartmuseum http://localhost:9090; do sleep 1s; done
-
-      - name: create and push helm chart
-        working-directory: './projects/infradude/helm'
-        run: |
-          export SEMVER=`cat ../../../semver.txt`
-          sudo snap install yq
-          tee new_values.yaml << END
-          image:
-            repository: gcr.io/$GCLOUD_PROJECT_NAME/infradude
-            tag: ${SEMVER}
-            pullPolicy: Always
-          END
-          yq m -x -i ./infradude/values.yaml new_values.yaml
-          helm package --dependency-update --version $SEMVER ./infradude/
-          helm push infradude-$SEMVER.tgz chartmuseum
-
-      - name: deploy application
-        run: |
-          tee my_values.yaml << END
-          env:
-            SLACK_APP_TOKEN: $SLACK_APP_TOKEN
-            SLACK_APP_NAME: $SLACK_APP_NAME
-            GCLOUD_SERVICE_KEY: $GCLOUD_SERVICE_KEY
-            GCLOUD_PROJECT_NAME: $GCLOUD_PROJECT_NAME
-            GCLOUD_COMPUTE_ZONE: $GCLOUD_COMPUTE_ZONE
-            GCLOUD_CLUSTER: $GCLOUD_CLUSTER
-            GCLOUD_BUCKET_NAME: $GCLOUD_CHARTMUSEUM_BUCKET
-          END
-          helm repo update
-          helm upgrade -i -f my_values.yaml --version=${SEMVER} infradude chartmuseum/infradude
-
+          docker build . -t veronezi/chartmuseum:"$SEMVER"
+          docker push veronezi/chartmuseum:"$SEMVER"
