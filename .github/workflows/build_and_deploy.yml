@@ -14,6 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v2
+
       - name: get version
         run: |
           export GITTOOLS="gittools/gitversion:5.1.2-beta1-12-linux-debian-9-netcoreapp3.0"
